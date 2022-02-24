@@ -11,7 +11,7 @@ https://youtu.be/kcqGKI0bAL4
 M5Stack components are also available on Aliexpress & Banggood.  
 
 ## Arduino
-- Board: M5Stack-ATOM ([Board URL](https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json))
+- Board: M5Stack-ATOM ([Board URL](https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json), [Manual](https://docs.m5stack.com/en/quick_start/atom/arduino))
 - Libraries:
   - [256dpi/arduino-mqtt](https://github.com/256dpi/arduino-mqtt)
   - [m5stack/M5Atom](https://github.com/m5stack/M5Atom) (Tested with version 0.0.8)
