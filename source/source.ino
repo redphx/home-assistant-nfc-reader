@@ -13,6 +13,13 @@ const char *WIFI_PASSWORD = "password";
 const char *MQTT_SERVER = "192.168.1.100";
 const char *MQTT_USER = "user";
 const char *MQTT_PASSWORD = "password";
+const char *MQTT_DISCOVERY_TOPIC = "homeassistant/tag/hamiibo/config";
+const char *MQTT_TAG_SCANNED_TOPIC = "hamiibo/tag_scanned";
+
+// Home Assistant Device
+const char *HA_DEVICE_NAME = "HAmiibo";
+const char *HA_DEVICE_ID = "hamiibo";
+
 
 extern const unsigned char super_mario_bros_coin[];
 extern const unsigned int super_mario_bros_coin_len;
@@ -80,6 +87,12 @@ void connect() {
     Serial.print(".");
     delay(1000);
   }
+
+  // Publish HA Device
+  String message = "{\"topic\": \"" + String(MQTT_TAG_SCANNED_TOPIC) + "\", \"device\": {\"name\": \"" + String(HA_DEVICE_NAME) + "\", \"identifiers\": \"" + String(HA_DEVICE_ID) + "\"}}";
+  Serial.println(message);
+  mqtt_client.publish(MQTT_DISCOVERY_TOPIC, message);
+  
   Serial.println("\nConnected");
 }
 
@@ -127,7 +140,7 @@ void loop() {
     Serial.println(uid_hex);
 
     // Send card ID to MQTT server
-    mqtt_client.publish("rfid/card_id", uid_hex);
+    mqtt_client.publish(MQTT_TAG_SCANNED_TOPIC, uid_hex);
 
     // Play sound on Atom Echo
     i2s_write(SPEAK_I2S_NUMBER, super_mario_bros_coin, super_mario_bros_coin_len, &bytes_written, portMAX_DELAY);
