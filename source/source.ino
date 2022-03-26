@@ -23,6 +23,9 @@ const char *HA_DEVICE_ID = "hamiibo";
 
 extern const unsigned char super_mario_bros_coin[];
 extern const unsigned int super_mario_bros_coin_len;
+extern const unsigned char scanned_sound[];
+extern const unsigned int scanned_sound_len;
+size_t sound_bytes_written;
 
 MFRC522 mfrc522(0x28);  // Create MFRC522 instance
 
@@ -32,6 +35,7 @@ MFRC522 mfrc522(0x28);  // Create MFRC522 instance
 #define CONFIG_I2S_DATA_IN_PIN 23
 
 #define SPEAK_I2S_NUMBER I2S_NUM_0
+#define SAMPLE_RATE 44100
 
 WiFiClient net;
 MQTTClient mqtt_client;
@@ -42,8 +46,8 @@ bool init_i2s_speaker() {
   i2s_driver_uninstall(SPEAK_I2S_NUMBER);
   i2s_config_t i2s_config = {
       .mode = (i2s_mode_t)(I2S_MODE_MASTER),
-      .sample_rate = 44100,
-      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT, // is fixed at 12bit, stereo, MSB
+      .sample_rate = SAMPLE_RATE,
+      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
       .channel_format = I2S_CHANNEL_FMT_ALL_RIGHT,
       .communication_format = I2S_COMM_FORMAT_STAND_I2S,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
@@ -68,10 +72,18 @@ bool init_i2s_speaker() {
   Serial.println("Init i2s_set_pin");
   err += i2s_set_pin(SPEAK_I2S_NUMBER, &tx_pin_config);
   Serial.println("Init i2s_set_clk");
-  err += i2s_set_clk(SPEAK_I2S_NUMBER, 88200, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+  err += i2s_set_clk(SPEAK_I2S_NUMBER, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
 
   return true;
 }
+
+
+void register_device() {
+  String message = "{\"topic\": \"" + String(MQTT_TAG_SCANNED_TOPIC) + "\", \"device\": {\"name\": \"" + String(HA_DEVICE_NAME) + "\", \"identifiers\": \"" + String(HA_DEVICE_ID) + "\"}}";
+  // Serial.println(message);
+  mqtt_client.publish(MQTT_DISCOVERY_TOPIC, message, true, 2);
+}
+
 
 void connect() {
   Serial.println("Connecting to WiFi");
@@ -79,21 +91,20 @@ void connect() {
     Serial.print(".");
     delay(1000);
   }
-  Serial.println("\nConnected");
+  Serial.println("Connected");
 
   Serial.println("Connecting to MQTT");
-  mqtt_client.begin(MQTT_SERVER, net);
   while (!mqtt_client.connect("rfid", MQTT_USER, MQTT_PASSWORD)) {
     Serial.print(".");
     delay(1000);
   }
 
   // Publish HA Device
-  String message = "{\"topic\": \"" + String(MQTT_TAG_SCANNED_TOPIC) + "\", \"device\": {\"name\": \"" + String(HA_DEVICE_NAME) + "\", \"identifiers\": \"" + String(HA_DEVICE_ID) + "\"}}";
-  Serial.println(message);
-  mqtt_client.publish(MQTT_DISCOVERY_TOPIC, message);
-  
-  Serial.println("\nConnected");
+  register_device();
+  Serial.println("Connected");
+
+  // Play boot sound
+  i2s_write(SPEAK_I2S_NUMBER, scanned_sound, scanned_sound_len, &sound_bytes_written, portMAX_DELAY);
 }
 
 void setup() {
@@ -114,11 +125,10 @@ void setup() {
   WiFi.mode(WIFI_STA);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  mqtt_client.begin(MQTT_SERVER, net);
 
-  connect();  
+  connect();
 }
-
-size_t bytes_written;
 
 void loop() {
   mqtt_client.loop();
@@ -126,26 +136,28 @@ void loop() {
     connect();
   }
 
+  // No cards found
   if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
     delay(1000);
-  } else {
-    // Read card ID
-    String uid_hex = "";
-    for (byte i = 0; i < mfrc522.uid.size; i++) {
-      if (mfrc522.uid.uidByte[i] < 0x10) {
-        uid_hex += "0";
-      }
-      uid_hex += String(mfrc522.uid.uidByte[i], HEX);
-    }
-    Serial.println(uid_hex);
-
-    // Send card ID to MQTT server
-    mqtt_client.publish(MQTT_TAG_SCANNED_TOPIC, uid_hex);
-
-    // Play sound on Atom Echo
-    i2s_write(SPEAK_I2S_NUMBER, super_mario_bros_coin, super_mario_bros_coin_len, &bytes_written, portMAX_DELAY);
-
-    // Sleep for 5 seconds
-    delay(5000);
+    return;
   }
+
+  // Read card ID
+  String uid_hex = "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    if (mfrc522.uid.uidByte[i] < 0x10) {
+      uid_hex += "0";
+    }
+    uid_hex += String(mfrc522.uid.uidByte[i], HEX);
+  }
+  Serial.println(uid_hex);
+
+  // Send card ID to MQTT server
+  mqtt_client.publish(MQTT_TAG_SCANNED_TOPIC, uid_hex);
+
+  // Play scanned sound
+  i2s_write(SPEAK_I2S_NUMBER, scanned_sound, scanned_sound_len, &sound_bytes_written, portMAX_DELAY);
+
+  // Sleep for 5 seconds
+  delay(5000);
 }
