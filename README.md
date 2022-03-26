@@ -21,7 +21,7 @@ M5Stack components are also available on Aliexpress & Banggood.
 1. Read NFC card.  
 2. Send card ID to local MQTT server, then sleep for 5 seconds (to prevent sending same card multiple times).  
 3. Play sound on Atom Echo.  
-4. Receive card ID in Node RED.  
+4. Receive card ID in `tag_scanned` event.  
 5. Run automation depends on card ID.
 
 ## How to generate custom sound  
