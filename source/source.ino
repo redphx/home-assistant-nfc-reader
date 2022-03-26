@@ -20,9 +20,6 @@ const char *MQTT_TAG_SCANNED_TOPIC = "hamiibo/tag_scanned";
 const char *HA_DEVICE_NAME = "HAmiibo";
 const char *HA_DEVICE_ID = "hamiibo";
 
-
-extern const unsigned char super_mario_bros_coin[];
-extern const unsigned int super_mario_bros_coin_len;
 extern const unsigned char scanned_sound[];
 extern const unsigned int scanned_sound_len;
 size_t sound_bytes_written;
